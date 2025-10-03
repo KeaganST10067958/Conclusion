@@ -33,6 +33,9 @@ object ServiceLocator {
     lateinit var api: PlannerApi
         private set
 
+    fun currentUserId(): String =
+        authManager.lastAccount(appContext)?.id ?: "local"
+
     fun init(context: Context) {
         appContext = context.applicationContext
 

@@ -27,17 +27,27 @@ fun TasksScreen() {
     ) {
         Text("Tasks", style = MaterialTheme.typography.headlineMedium)
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             OutlinedTextField(
-                value = newTitle, onValueChange = { newTitle = it },
-                label = { Text("Add a task…") }, modifier = Modifier.weight(1f)
+                value = newTitle,
+                onValueChange = { newTitle = it },
+                label = { Text("Add a task…") },
+                modifier = Modifier.weight(1f)
             )
             Button(
+                modifier = Modifier.height(56.dp),
                 onClick = {
                     if (newTitle.isNotBlank()) { vm.add(newTitle.trim()); newTitle = "" }
-                },
-                modifier = Modifier.height(56.dp)
+                }
             ) { Text("Add") }
+
+            OutlinedButton(
+                modifier = Modifier.height(56.dp),
+                onClick = { vm.syncFromServer() }
+            ) { Text("Sync") }
         }
 
         Spacer(Modifier.height(4.dp))
@@ -48,7 +58,7 @@ fun TasksScreen() {
                 itemsList = todo,
                 onMoveRight = { vm.move(it.id, TaskStatus.DOING) },
                 onDelete = { vm.delete(it.id) },
-                modifier = Modifier.weight(1f) // <— weight belongs here
+                modifier = Modifier.weight(1f)
             )
             TaskColumn(
                 title = "Doing",
