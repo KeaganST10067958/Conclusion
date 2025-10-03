@@ -4,12 +4,12 @@ import android.content.Context
 import com.keagan.conclusion.R
 import com.keagan.conclusion.auth.AuthManager
 import com.keagan.conclusion.data.local.AppDatabase
+import com.keagan.conclusion.data.remote.PlannerApi
+import com.keagan.conclusion.data.remote.RetrofitProvider
 import com.keagan.conclusion.data.repo.NoteRepositoryImpl
 import com.keagan.conclusion.data.repo.TaskRepositoryImpl
 import com.keagan.conclusion.domain.repo.NoteRepository
 import com.keagan.conclusion.domain.repo.TaskRepository
-import com.keagan.conclusion.data.remote.PlannerApi
-import com.keagan.conclusion.data.remote.RetrofitProvider
 
 object ServiceLocator {
     lateinit var appContext: Context
@@ -29,7 +29,7 @@ object ServiceLocator {
     lateinit var streakManager: StreakManager
         private set
 
-    // Optional REST API
+    // REST API
     lateinit var api: PlannerApi
         private set
 
@@ -51,9 +51,10 @@ object ServiceLocator {
         // Streak/quotes
         streakManager = StreakManager(appContext)
 
-        // Retrofit API scaffold (replace base URL when your API is ready)
+        // Retrofit API — use your Render URL (keep trailing slash)
         api = RetrofitProvider.api(
-            baseUrl = "https://YOUR-API.example/" // <- must end with a '/'
+            baseUrl = "https://planner-api-1ls6.onrender.com/"
+            // For local dev on emulator: "http://10.0.2.2:8080/"
         )
     }
 }

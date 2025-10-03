@@ -5,88 +5,56 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import kotlin.math.abs
 
-// Single DataStore instance for streaks (scoped to Context)
-private val Context.streakDataStore by preferencesDataStore(name = "planner_streak")
+/**
+ * Simple streak tracker:
+ * - Stores last done day (YYYY-MM-DD) and current streak count in DataStore.
+ * - Resets to 0 if you miss a day (i.e., not done yesterday or today).
+ * - Increments if you mark today after doing it yesterday; stays same if already marked today.
+ */
+class StreakManager(private val context: Context) {
 
-/** Pure logic so we can unit-test date math without Android/DataStore. */
-object StreakLogic {
-    /**
-     * Returns the new streak given the last open date, current count, and today.
-     * Rules:
-     * - First ever open -> 1
-     * - Same day -> keep currentCount (min 1)
-     * - Consecutive next day -> +1
-     * - Any gap -> 1
-     */
-    fun nextCount(lastOpen: LocalDate?, currentCount: Int, today: LocalDate): Int = when {
-        lastOpen == null -> 1
-        lastOpen == today -> if (currentCount <= 0) 1 else currentCount
-        lastOpen.plusDays(1) == today -> currentCount + 1
-        else -> 1
-    }
-}
+    private val Context.dataStore by preferencesDataStore(name = "streak_store")
 
-class StreakManager(private val appContext: Context) {
-    private val KEY_LAST_OPEN = stringPreferencesKey("last_open_yyyy_mm_dd")
-    private val KEY_STREAK = intPreferencesKey("streak_count")
-    private val dateFmt = DateTimeFormatter.ISO_LOCAL_DATE
+    private val KEY_STREAK  = intPreferencesKey("streak_count")
+    private val KEY_LASTDAY = stringPreferencesKey("streak_last_day") // YYYY-MM-DD
+    private val FMT = DateTimeFormatter.ISO_LOCAL_DATE
 
-    /**
-     * Call once per app start/day (we trigger it in App()).
-     * Returns the updated streak.
-     */
-    suspend fun touchAndGetStreak(): Int {
-        val ds = appContext.streakDataStore
+    /** Observe the current streak as a Flow<Int>. */
+    fun observe(): Flow<Int> = context.dataStore.data.map { prefs ->
+        val saved = prefs[KEY_STREAK] ?: 0
+        val last  = prefs[KEY_LASTDAY]?.let { LocalDate.parse(it, FMT) }
         val today = LocalDate.now()
-        var newCount = 0
 
-        ds.edit { prefs ->
-            val lastStr = prefs[KEY_LAST_OPEN]
-            val last = lastStr?.let { LocalDate.parse(it, dateFmt) }
-            val current = prefs[KEY_STREAK] ?: 0
-
-            newCount = StreakLogic.nextCount(
-                lastOpen = last,
-                currentCount = current,
-                today = today
-            )
-
-            prefs[KEY_LAST_OPEN] = today.format(dateFmt)
-            prefs[KEY_STREAK] = newCount
+        // If last completion was yesterday or today, keep saved value.
+        // If it's another day (missed), return 0 (but do not write; write happens on mark/load if desired)
+        return@map when {
+            last == null -> 0
+            last == today || last == today.minusDays(1) -> saved
+            else -> 0
         }
-        return newCount
     }
 
-    /** Read current streak without modifying it. */
-    suspend fun currentStreak(): Int {
-        val prefs = appContext.streakDataStore.data.first()
-        return prefs[KEY_STREAK] ?: 0
-    }
+    /** Mark today as done: increments if yesterday was done, sets to 1 if not, keeps same if already done today. */
+    suspend fun markTodayDone() {
+        val today = LocalDate.now()
+        context.dataStore.edit { prefs ->
+            val saved = prefs[KEY_STREAK] ?: 0
+            val last  = prefs[KEY_LASTDAY]?.let { LocalDate.parse(it, FMT) }
 
-    /** Deterministic local quote-of-the-day (works offline). */
-    fun quoteOfToday(): String {
-        val quotes = DailyQuotes.pool
-        val idx = abs(LocalDate.now().toEpochDay().toInt()) % quotes.size
-        return quotes[idx]
-    }
-}
+            val newCount = when {
+                last == null -> 1
+                last == today -> saved            // already marked today
+                last == today.minusDays(1) -> saved + 1
+                else -> 1                         // missed a day, reset streak
+            }
 
-private object DailyQuotes {
-    val pool = listOf(
-        "Small wins compound—study 20 minutes now.",
-        "Show up today. Momentum beats perfection.",
-        "Future you will thank present you.",
-        "Consistency turns hard into habit.",
-        "Start with the smallest possible step.",
-        "You don’t need more time, just a start.",
-        "Track the streak, not the stress.",
-        "Progress, not perfection.",
-        "Make it easy to begin—open the book.",
-        "Done is greater than perfect."
-    )
+            prefs[KEY_STREAK] = newCount
+            prefs[KEY_LASTDAY] = today.format(FMT)
+        }
+    }
 }

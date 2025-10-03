@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,12 +25,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App() {
     val nav: NavHostController = rememberNavController()
-
-    // ⬇️ Count today's open exactly once
-    LaunchedEffect(Unit) {
-        ServiceLocator.streakManager.touchAndGetStreak()
-    }
-
     Surface(color = MaterialTheme.colorScheme.background) {
         NavHost(navController = nav, startDestination = "auth") {
             composable("auth") {
@@ -46,6 +39,8 @@ private fun App() {
             composable("dashboard") {
                 Dashboard(
                     onLogout = {
+                        // Optional: sign out from Google too if you want
+                        // ServiceLocator.authManager.signOut(LocalContext.current)
                         nav.navigate("auth") {
                             popUpTo("dashboard") { inclusive = true }
                         }
