@@ -5,14 +5,13 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-// ✅ Use only the entities you actually have right now
 @Database(
     entities = [
         NoteEntity::class,
         TaskEntity::class
     ],
-    version = 2,            // 🔼 bump this when schema changes
-    exportSchema = true
+    version = 2,
+    exportSchema = false   // ✅ no schemas folder yet; turn off export
 )
 abstract class AppDatabase : RoomDatabase() {
 
@@ -27,9 +26,8 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "plan_demic.db"   // keep the same name
+                    "plan_demic.db"
                 )
-                    // Dev-only: drop & recreate on version change
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

@@ -25,6 +25,10 @@ object ServiceLocator {
     lateinit var authManager: AuthManager
         private set
 
+    // ServiceLocator.kt (add a property + init it)
+    lateinit var streakManager: com.keagan.conclusion.util.StreakManager
+        private set
+
     fun init(context: Context) {
         appContext = context.applicationContext
 
@@ -34,5 +38,8 @@ object ServiceLocator {
 
         val webClientId = appContext.getString(R.string.server_client_id)
         authManager = AuthManager(webClientId)
+
+        streakManager = com.keagan.conclusion.util.StreakManager(appContext)
     }
+
 }

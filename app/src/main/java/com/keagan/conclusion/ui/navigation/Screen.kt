@@ -5,6 +5,7 @@ sealed class Screen(val route: String) {
     data object Dashboard : Screen("dashboard")
 
     // Bottom tabs inside Dashboard
+    data object Home     : Screen("home")
     data object Notes    : Screen("notes")
     data object Calendar : Screen("calendar")
     data object Tasks    : Screen("tasks")

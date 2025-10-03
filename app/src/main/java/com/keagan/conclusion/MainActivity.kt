@@ -6,12 +6,13 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.keagan.conclusion.ui.screens.AuthScreen
-import com.keagan.conclusion.ui.screens.Dashboard   // <-- use your Dashboard composable
+import com.keagan.conclusion.ui.screens.Dashboard
 import com.keagan.conclusion.util.ServiceLocator
 
 class MainActivity : ComponentActivity() {
@@ -25,6 +26,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App() {
     val nav: NavHostController = rememberNavController()
+
+    // ⬇️ Count today's open exactly once
+    LaunchedEffect(Unit) {
+        ServiceLocator.streakManager.touchAndGetStreak()
+    }
+
     Surface(color = MaterialTheme.colorScheme.background) {
         NavHost(navController = nav, startDestination = "auth") {
             composable("auth") {
@@ -39,8 +46,6 @@ private fun App() {
             composable("dashboard") {
                 Dashboard(
                     onLogout = {
-                        // optional: also sign out from Google
-                        // ServiceLocator.authManager.signOut(LocalContext.current)
                         nav.navigate("auth") {
                             popUpTo("dashboard") { inclusive = true }
                         }
