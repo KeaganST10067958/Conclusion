@@ -4,30 +4,31 @@ import android.content.Context
 import com.keagan.conclusion.R
 import com.keagan.conclusion.auth.AuthManager
 import com.keagan.conclusion.data.local.AppDatabase
-import com.keagan.conclusion.data.repo.EntryRepositoryImpl
-import com.keagan.conclusion.domain.repo.EntryRepository
+import com.keagan.conclusion.data.repo.NoteRepositoryImpl
+import com.keagan.conclusion.domain.repo.NoteRepository
 
 object ServiceLocator {
     lateinit var appContext: Context
         private set
 
+    // Room
     lateinit var db: AppDatabase
         private set
 
-    lateinit var entryRepo: EntryRepository
+    // Notes repo
+    lateinit var noteRepo: NoteRepository
         private set
 
+    // Google auth
     lateinit var authManager: AuthManager
         private set
 
     fun init(context: Context) {
         appContext = context.applicationContext
 
-        // Room
         db = AppDatabase.get(appContext)
-        entryRepo = EntryRepositoryImpl(db.entryDao())
+        noteRepo = NoteRepositoryImpl(db.noteDao())
 
-        // Google SSO – just pass the WEB client ID string
         val webClientId = appContext.getString(R.string.server_client_id)
         authManager = AuthManager(webClientId)
     }

@@ -12,8 +12,7 @@ import com.keagan.conclusion.util.ServiceLocator
 
 @Composable
 fun NotesScreen() {
-    // simple manual VM wiring
-    val vm = remember { NotesViewModel(ServiceLocator.entryRepo) }
+    val vm = remember { NotesViewModel(ServiceLocator.noteRepo) }
     val notes by vm.notes.collectAsState()
 
     var title by remember { mutableStateOf("") }
@@ -23,16 +22,20 @@ fun NotesScreen() {
         Text("Sticky Notes", style = MaterialTheme.typography.headlineMedium)
 
         OutlinedTextField(
-            value = title, onValueChange = { title = it },
-            label = { Text("Title") }, modifier = Modifier.fillMaxWidth()
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Title") },
+            modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
-            value = content, onValueChange = { content = it },
-            label = { Text("Content") }, modifier = Modifier.fillMaxWidth()
+            value = content,
+            onValueChange = { content = it },
+            label = { Text("Content") },
+            modifier = Modifier.fillMaxWidth()
         )
         Button(onClick = {
             if (title.isNotBlank()) {
-                vm.addNote(title, content.ifBlank { null })
+                vm.add(title, content.ifBlank { null })
                 title = ""; content = ""
             }
         }) { Text("Add note") }
@@ -44,9 +47,12 @@ fun NotesScreen() {
                 ElevatedCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
                         Text(n.title, style = MaterialTheme.typography.titleMedium)
-                        if (!n.content.isNullOrBlank())
+                        if (!n.content.isNullOrBlank()) {
                             Text(n.content!!, style = MaterialTheme.typography.bodyMedium)
-                        TextButton(onClick = { vm.deleteNote(n.id) }) { Text("Delete") }
+                        }
+                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                            TextButton(onClick = { vm.delete(n.id) }) { Text("Delete") }
+                        }
                     }
                 }
             }

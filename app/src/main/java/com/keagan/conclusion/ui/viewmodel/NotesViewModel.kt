@@ -2,38 +2,33 @@ package com.keagan.conclusion.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.keagan.conclusion.domain.model.Entry
-import com.keagan.conclusion.domain.model.EntryType
-import com.keagan.conclusion.domain.repo.EntryRepository
+import com.keagan.conclusion.domain.model.Note
+import com.keagan.conclusion.domain.repo.NoteRepository
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
 
-class NotesViewModel(private val repo: EntryRepository) : ViewModel() {
+class NotesViewModel(
+    private val repo: NoteRepository
+) : ViewModel() {
 
-    val notes = repo.observe(EntryType.NOTE)
-        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    val notes: StateFlow<List<Note>> =
+        repo.observeAll().stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
-    fun addNote(title: String, content: String?) {
-        viewModelScope.launch {
-            repo.upsert(
-                Entry(
-                    id = "",
-                    userId = "local",
-                    type = EntryType.NOTE,
-                    title = title,
-                    content = content,
-                    date = null,
-                    status = null,
-                    createdAt = Instant.now(),
-                    updatedAt = Instant.now()
-                )
+    fun add(title: String, content: String?) = viewModelScope.launch {
+        repo.upsert(
+            Note(
+                id = "",
+                userId = "local", // later: Google uid or your backend user id
+                title = title,
+                content = content,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now()
             )
-        }
+        )
     }
 
-    fun deleteNote(id: String) {
-        viewModelScope.launch { repo.delete(id) }
-    }
+    fun delete(id: String) = viewModelScope.launch { repo.delete(id) }
 }
