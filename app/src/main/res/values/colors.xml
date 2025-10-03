@@ -1,0 +1,5 @@
+<resources>
+    <color name="brand_bg">#FFFFFFFF</color>
+    <color name="brand_primary">#FFEC5AAE</color>
+    <color name="brand_onPrimary">#FF2B2B2B</color>
+</resources>
