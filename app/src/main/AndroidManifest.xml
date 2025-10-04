@@ -5,14 +5,15 @@
 
     <application
         android:allowBackup="true"
-        android:theme="@style/Theme.PlanDemic"
         android:label="Plan-demic"
-        android:supportsRtl="true">
+        android:icon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PlanDemic.Splash">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.PlanDemic.Splash">
+            android:theme="@style/Theme.PlanDemic">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

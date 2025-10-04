@@ -3,23 +3,35 @@ package com.keagan.conclusion.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.keagan.conclusion.ui.viewmodel.NotesViewModel
 import com.keagan.conclusion.util.ServiceLocator
+import kotlinx.coroutines.launch
 
 @Composable
 fun NotesScreen() {
-    val vm = remember { NotesViewModel(ServiceLocator.noteRepo) }
-    val notes by vm.notes.collectAsState()
+    val repo = ServiceLocator.noteRepo
+    val notes by repo.observe().collectAsState()
 
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
 
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Sticky Notes", style = MaterialTheme.typography.headlineMedium)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Notes", style = MaterialTheme.typography.titleLarge)
 
         OutlinedTextField(
             value = title,
@@ -33,25 +45,36 @@ fun NotesScreen() {
             label = { Text("Content") },
             modifier = Modifier.fillMaxWidth()
         )
-        Button(onClick = {
-            if (title.isNotBlank()) {
-                vm.add(title, content.ifBlank { null })
-                title = ""; content = ""
-            }
-        }) { Text("Add note") }
 
-        Divider(Modifier.padding(vertical = 8.dp))
+        Button(
+            onClick = {
+                if (title.isNotBlank() || content.isNotBlank()) {
+                    scope.launch { repo.addNote(title, content) }
+                    title = ""
+                    content = ""
+                }
+            }
+        ) { Text("Add") }
+
+        Spacer(Modifier.height(12.dp))
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(notes, key = { it.id }) { n ->
-                ElevatedCard(Modifier.fillMaxWidth()) {
+            items(notes) { n ->
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
                     Column(Modifier.padding(12.dp)) {
                         Text(n.title, style = MaterialTheme.typography.titleMedium)
-                        if (!n.content.isNullOrBlank()) {
-                            Text(n.content!!, style = MaterialTheme.typography.bodyMedium)
+                        if (n.content.isNotBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(n.content)
                         }
-                        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                            TextButton(onClick = { vm.delete(n.id) }) { Text("Delete") }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = { scope.launch { repo.deleteNote(n.id) } }) {
+                                Text("Delete")
+                            }
                         }
                     }
                 }

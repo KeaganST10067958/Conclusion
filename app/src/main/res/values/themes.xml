@@ -1,13 +1,20 @@
 <resources>
-    <style name="Theme.PlanDemic.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/brand_bg</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_plan_demic</item>
-        <item name="postSplashScreenTheme">@style/Theme.PlanDemic</item>
+
+    <!-- App theme -->
+    <style name="Theme.PlanDemic" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Customize your Material colors/typography if you like -->
     </style>
 
-    <style name="Theme.PlanDemic" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
+    <!-- Splash theme (uses the Android 12+ SplashScreen API) -->
+    <style name="Theme.PlanDemic.Splash" parent="Theme.SplashScreen">
+        <!-- Background behind the icon -->
+        <item name="windowSplashScreenBackground">@color/splash_bg</item>
+
+        <!-- ✅ Use the launcher icon that already exists -->
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+
+        <!-- The theme to apply after the splash disappears -->
+        <item name="postSplashScreenTheme">@style/Theme.PlanDemic</item>
     </style>
 
 </resources>

@@ -1,120 +1,169 @@
+// app/src/main/java/com/keagan/conclusion/ui/screens/TasksScreen.kt
 package com.keagan.conclusion.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.keagan.conclusion.domain.model.Task
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.keagan.conclusion.domain.model.TaskStatus
+import com.keagan.conclusion.ui.viewmodel.TaskUi
 import com.keagan.conclusion.ui.viewmodel.TasksViewModel
-import com.keagan.conclusion.util.ServiceLocator
 
 @Composable
-fun TasksScreen() {
-    val vm = remember { TasksViewModel(ServiceLocator.taskRepo) }
-    val todo by vm.todo.collectAsState()
-    val doing by vm.doing.collectAsState()
-    val done by vm.done.collectAsState()
+fun TasksScreen(
+    vm: TasksViewModel = viewModel()
+) {
+    var input by remember { mutableStateOf("") }
 
-    var newTitle by remember { mutableStateOf("") }
+    // ✅ collect the StateFlow for composition-safe reads
+    val ui by vm.state.collectAsState()
 
     Column(
-        Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
+            .padding(16.dp)
     ) {
-        Text("Tasks", style = MaterialTheme.typography.headlineMedium)
+        Text("Tasks", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+
+        Spacer(Modifier.height(12.dp))
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
             OutlinedTextField(
-                value = newTitle,
-                onValueChange = { newTitle = it },
-                label = { Text("Add a task…") },
-                modifier = Modifier.weight(1f)
+                value = input,
+                onValueChange = { input = it },
+                modifier = Modifier.weight(1f), // ✅ safe (inside Row)
+                placeholder = { Text("Add a task…") }
             )
             Button(
-                modifier = Modifier.height(56.dp),
-                onClick = {
-                    if (newTitle.isNotBlank()) { vm.add(newTitle.trim()); newTitle = "" }
-                }
+                onClick = { vm.addTask(input); input = "" },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) { Text("Add") }
-
-            OutlinedButton(
-                modifier = Modifier.height(56.dp),
-                onClick = { vm.syncFromServer() }
-            ) { Text("Sync") }
         }
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(16.dp))
 
-        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TaskColumn(
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // ✅ ColumnCard is a RowScope extension; weight is always legal
+            ColumnCard(
                 title = "To-Do",
-                itemsList = todo,
-                onMoveRight = { vm.move(it.id, TaskStatus.DOING) },
-                onDelete = { vm.delete(it.id) },
+                color = Color(0xFF9FA8DA),
+                tasks = ui.todo,
+                onLeft = null,
+                onRight = { id -> vm.moveTask(id, TaskStatus.DOING) },
+                onDelete = vm::deleteTask,
                 modifier = Modifier.weight(1f)
             )
-            TaskColumn(
+
+            ColumnCard(
                 title = "Doing",
-                itemsList = doing,
-                onMoveLeft = { vm.move(it.id, TaskStatus.TODO) },
-                onMoveRight = { vm.move(it.id, TaskStatus.DONE) },
-                onDelete = { vm.delete(it.id) },
+                color = Color(0xFF80CBC4),
+                tasks = ui.doing,
+                onLeft = { id -> vm.moveTask(id, TaskStatus.TODO) },
+                onRight = { id -> vm.moveTask(id, TaskStatus.DONE) },
+                onDelete = vm::deleteTask,
                 modifier = Modifier.weight(1f)
             )
-            TaskColumn(
+
+            ColumnCard(
                 title = "Done",
-                itemsList = done,
-                onMoveLeft = { vm.move(it.id, TaskStatus.DOING) },
-                onDelete = { vm.delete(it.id) },
+                color = Color(0xFFA5D6A7),
+                tasks = ui.done,
+                onLeft = { id -> vm.moveTask(id, TaskStatus.DOING) },
+                onRight = null,
+                onDelete = vm::deleteTask,
                 modifier = Modifier.weight(1f)
             )
         }
     }
 }
 
+/**
+ * ✅ RowScope extension so callers can safely pass Modifier.weight(...)
+ */
 @Composable
-private fun TaskColumn(
+private fun RowScope.ColumnCard(
     title: String,
-    itemsList: List<Task>,
-    onMoveLeft: ((Task) -> Unit)? = null,
-    onMoveRight: ((Task) -> Unit)? = null,
-    onDelete: (Task) -> Unit,
+    color: Color,
+    tasks: List<TaskUi>,
+    onLeft: ((String) -> Unit)?,
+    onRight: ((String) -> Unit)?,
+    onDelete: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    ElevatedCard(modifier.fillMaxHeight()) {
+    ElevatedCard(
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        modifier = modifier.fillMaxSize()
+    ) {
         Column(Modifier.padding(12.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(title, fontWeight = FontWeight.SemiBold, color = color)
             Spacer(Modifier.height(8.dp))
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(itemsList, key = { it.id }) { t ->
-                    ElevatedCard {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(t.title, style = MaterialTheme.typography.bodyLarge)
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                if (onMoveLeft != null) {
-                                    TextButton(onClick = { onMoveLeft(t) }) { Text("←") }
-                                }
-                                if (onMoveRight != null) {
-                                    TextButton(onClick = { onMoveRight(t) }) { Text("→") }
-                                }
-                                Spacer(Modifier.weight(1f))
-                                TextButton(onClick = { onDelete(t) }) { Text("Delete") }
-                            }
-                        }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(tasks, key = { it.id }) { t ->
+                    TaskRow(task = t, onLeft = onLeft, onRight = onRight, onDelete = onDelete)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TaskRow(
+    task: TaskUi,
+    onLeft: ((String) -> Unit)?,
+    onRight: ((String) -> Unit)?,
+    onDelete: (String) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                task.title,
+                modifier = Modifier.weight(1f), // ✅ inside Row
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (onLeft != null) {
+                    IconButton(onClick = { onLeft(task.id) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Move left")
                     }
+                }
+                if (onRight != null) {
+                    IconButton(onClick = { onRight(task.id) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Move right")
+                    }
+                }
+                IconButton(onClick = { onDelete(task.id) }) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
                 }
             }
         }

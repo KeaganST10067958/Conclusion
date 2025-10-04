@@ -1,299 +1,511 @@
 package com.keagan.conclusion.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Note
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.keagan.conclusion.ui.components.GlassCard
-import com.keagan.conclusion.ui.components.GlassPill
 import kotlinx.coroutines.delay
-import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.roundToInt
+
+/* ------------------------------------------
+   Lightweight “glass” components (no blur API)
+------------------------------------------- */
 
 @Composable
-fun HomeScreen() {
-    // simple state (replace with real sources later)
-    var streak by remember { mutableStateOf(1) }
-    val quote = remember { quoteOfTodayLocal() }
-
-    // iOS-ish soft gradient
-    val bg = Brush.linearGradient(
-        0f to Color(0xFFF8E9FF),
-        0.5f to Color(0xFFEFF1FF),
-        1f to Color(0xFFEDE4FF)
-    )
-
+private fun GlassCard(
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 22.dp,
+    contentPadding: Dp = 16.dp,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val surface = MaterialTheme.colorScheme.surface
+    val outline = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(bg)
-            .systemBarsPadding()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        GreetingHeader(name = "Keagan")
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            StatChip("Today", "4 tasks", Color(0xFFFF7DB6), Modifier.weight(1f))
-            StatChip("Focus", "0 min", Color(0xFF6FB6FF), Modifier.weight(1f))
-            StatChip("Streak", "$streak days", Color(0xFFFFD46A), Modifier.weight(1f))
-        }
-
-        // Tabs row (visual only here)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            listOf("To-Do", "Schedule", "Pomodoro", "Notes").forEachIndexed { idx, label ->
-                GlassPill(
-                    text = label,
-                    selected = idx == 0,          // make "To-Do" look selected for now
-                    onClick = { /* hook up nav if you like */ },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
+        modifier = modifier
+            .clip(RoundedCornerShape(cornerRadius))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        surface.copy(alpha = 0.55f),
+                        surface.copy(alpha = 0.35f)
+                    )
                 )
-            }
-        }
+            )
+            .border(1.dp, outline, RoundedCornerShape(cornerRadius))
+            .padding(contentPadding)
+    ) { content() }
+}
 
-        // Streak card
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            cornerRadius = 28.dp,
-            contentPadding = 20.dp
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    IconBadge()
-
-                    Column(Modifier.weight(1f)) {
-                        Text("Daily streak", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-                        Text("Keep the chain going · Goal: 30", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-
-                    Button(
-                        onClick = { streak += 1 },
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6B5BFF),
-                            contentColor = Color.White
-                        )
-                    ) { Text("Mark today") }
-                }
-
-                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
-                Text(quote, style = MaterialTheme.typography.titleMedium)
-            }
-        }
-
-        // Live Pomodoro with presets
-        PomodoroCard()
-        Spacer(Modifier.height(12.dp))
+@Composable
+private fun GlassPill(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val bg by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+        else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
+        label = "pillBg"
+    )
+    val fg by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "pillFg"
+    )
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(bg)
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                CircleShape
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Text(text, color = fg, style = MaterialTheme.typography.labelLarge)
     }
 }
 
-/* ---------- Pomodoro ---------- */
-
-private data class PomPreset(val label: String, val seconds: Int)
+/* ------------------------------------------
+   Home / Dashboard screen
+------------------------------------------- */
 
 @Composable
-private fun PomodoroCard() {
-    // Presets — tweak to your taste
+fun HomeScreen() {
+    val listState = rememberLazyListState()
+
+    // Streak + quote – local only (no backend dependency)
+    var streak by rememberSaveable { mutableIntStateOf(1) }
+    val quote by remember { mutableStateOf(localQuoteOfToday()) }
+
+    // Tabs (visual only; you can hook them later)
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val tabs = listOf("To-Do", "Schedule", "Pomodoro", "Notes")
+
+    // Pomodoro state
     val presets = listOf(
-        PomPreset("Short", 5 * 60),
-        PomPreset("Medium", 25 * 60),
-        PomPreset("Long", 50 * 60)
+        "Short" to 25 * 60,   // 25:00
+        "Medium" to 40 * 60,  // 40:00
+        "Long" to 60 * 60     // 60:00
     )
+    var selectedPresetIndex by rememberSaveable { mutableIntStateOf(0) }
+    var isRunning by rememberSaveable { mutableStateOf(false) }
+    var remaining by rememberSaveable { mutableIntStateOf(presets[selectedPresetIndex].second) }
 
-    var selectedIndex by remember { mutableStateOf(1) } // default Medium (25:00)
-    val selectedPreset = presets[selectedIndex]
-
-    var total by remember { mutableStateOf(selectedPreset.seconds) }
-    var left by remember { mutableStateOf(selectedPreset.seconds) }
-    var running by remember { mutableStateOf(false) }
-
-    // If preset changes, reset timer (when not running)
-    LaunchedEffect(selectedIndex) {
-        if (!running) {
-            total = presets[selectedIndex].seconds
-            left = total
-        }
-    }
-
-    // Countdown loop
-    LaunchedEffect(running, total) {
-        while (running && left > 0) {
+    // Timer tick
+    LaunchedEffect(isRunning, selectedPresetIndex) {
+        while (isRunning && remaining > 0) {
             delay(1000)
-            left -= 1
+            remaining = max(0, remaining - 1)
         }
-        if (left <= 0) running = false
+        if (remaining == 0) isRunning = false
     }
 
-    val progress = if (total == 0) 0f else 1f - (left.toFloat() / total.toFloat())
-    val timeText = "%02d:%02d".format(left / 60, left % 60)
-
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 28.dp,
-        contentPadding = 24.dp
+    // Top gradient background
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+                    )
+                )
+            )
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(bottom = 28.dp)
         ) {
-            Text("Pomodoro", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            item {
+                Text(
+                    "Dashboard",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
 
-            // Preset pills
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                presets.forEachIndexed { i, p ->
-                    GlassPill(
-                        text = p.label,
-                        selected = i == selectedIndex,
-                        onClick = {
-                            if (!running) {
-                                selectedIndex = i
-                                total = p.seconds
-                                left = p.seconds
+            /* Streak + Quote */
+            item {
+                GlassCard {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Whatshot,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "Daily streak",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Text(
+                                "Keep the chain going • Goal: 30",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        FilledTonalButton(
+                            onClick = {
+                                // increment streak once per day (for now just +1)
+                                streak = (streak + 1).coerceAtLeast(1)
                             }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(40.dp)
+                        ) { Text("Mark today") }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+                    Divider()
+                    Spacer(Modifier.height(12.dp))
+
+                    Text(
+                        quote,
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
-            // Ring + time
-            Box(contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    progress = { progress },
-                    strokeWidth = 14.dp,
-                    modifier = Modifier.size(184.dp),
-                    color = Color(0xFFB7A7FF)
-                )
-                // Inner soft fill for depth
-                Box(
-                    modifier = Modifier
-                        .size(144.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                0f to Color(0xFFB7A7FF).copy(alpha = 0.18f),
-                                1f to Color.Transparent
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
+            /* Quick stats row */
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(timeText, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    StatChip(
+                        title = "Today",
+                        value = "4 tasks",
+                        progress = 0.35f,
+                        accent = Color(0xFFEC5AAE),
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatChip(
+                        title = "Focus",
+                        value = "0 min",
+                        progress = 0.10f,
+                        accent = Color(0xFF5AA8EC),
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatChip(
+                        title = "Streak",
+                        value = "$streak days",
+                        progress = (streak % 30) / 30f,
+                        accent = Color(0xFFF5C152),
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
-            // Controls
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    onClick = { running = !running },
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (running) Color(0xFF6B5BFF) else Color(0xFFFF6B99),
-                        contentColor = Color.White
-                    ),
-                    modifier = Modifier.height(48.dp)
-                ) { Text(if (running) "Pause" else "Start") }
+            /* Glass tab row */
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    tabs.forEachIndexed { i, label ->
+                        GlassPill(
+                            text = label,
+                            selected = selectedTab == i,
+                            onClick = { selectedTab = i }
+                        )
+                    }
+                }
+            }
 
-                OutlinedButton(
-                    onClick = {
-                        running = false
-                        total = selectedPreset.seconds
-                        left = total
-                    },
-                    shape = CircleShape,
-                    modifier = Modifier.height(48.dp)
-                ) { Text("Reset") }
+            /* Quick actions */
+            item {
+                GlassCard {
+                    Text(
+                        "Quick actions",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        QuickAction(
+                            icon = Icons.Filled.TaskAlt,
+                            label = "New task",
+                            onClick = { /* TODO: open tasks */ },
+                            modifier = Modifier.weight(1f)
+                        )
+                        QuickAction(
+                            icon = Icons.Filled.CalendarToday,
+                            label = "Open calendar",
+                            onClick = { /* TODO: open calendar */ },
+                            modifier = Modifier.weight(1f)
+                        )
+                        QuickAction(
+                            icon = Icons.Filled.Note,
+                            label = "New note",
+                            onClick = { /* TODO: open notes */ },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            /* Pomodoro */
+            item {
+                GlassCard {
+                    Text(
+                        "Pomodoro",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    // Preset selector
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        presets.forEachIndexed { index, (name, seconds) ->
+                            val selected = index == selectedPresetIndex
+                            val pillBg by animateColorAsState(
+                                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+                                else MaterialTheme.colorScheme.surface.copy(alpha = 0.35f),
+                                label = "presetBg"
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(pillBg)
+                                    .border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+                                        CircleShape
+                                    )
+                                    .clickable {
+                                        selectedPresetIndex = index
+                                        // Reset timer to new preset
+                                        isRunning = false
+                                        remaining = seconds
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Text(
+                                    name,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (selected) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Timer circle
+                    val minutes = remaining / 60
+                    val secs = remaining % 60
+                    val timeText = "%02d:%02d".format(minutes, secs)
+                    val progress by animateFloatAsState(
+                        targetValue = 1f - (remaining.toFloat() /
+                                presets[selectedPresetIndex].second.toFloat()
+                                    .coerceAtLeast(1f)),
+                        label = "pomProgress"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            progress = { progress },
+                            strokeWidth = 10.dp,
+                            modifier = Modifier.size(170.dp),
+                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                timeText,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                FilledIconButton(
+                                    onClick = {
+                                        if (remaining == 0) {
+                                            // if finished, reset to preset and start
+                                            remaining = presets[selectedPresetIndex].second
+                                        }
+                                        isRunning = !isRunning
+                                    }
+                                ) {
+                                    Icon(
+                                        if (isRunning) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                                        contentDescription = null
+                                    )
+                                }
+                                OutlinedButton(onClick = {
+                                    isRunning = false
+                                    remaining = presets[selectedPresetIndex].second
+                                }) { Text("Reset") }
+                            }
+                        }
+                    }
+                }
+            }
+
+            /* (Optional) tiny preview list – placeholder only */
+            items(sampleTasks) { t ->
+                GlassCard {
+                    Text(t.title, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        t.subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
 }
 
-/* ---------- Small helpers reused from your previous screen ---------- */
-
-@Composable
-private fun GreetingHeader(name: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text("Hi, $name", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-        }
-        Box(
-            modifier = Modifier
-                .clip(CircleShape)
-                .background(Color(0xFFF4F2FF))
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
-        ) { Text("KS", fontWeight = FontWeight.SemiBold, color = Color(0xFF3E3A7A)) }
-    }
-}
+/* ------------------------------------------
+   Helpers & small UI pieces
+------------------------------------------- */
 
 @Composable
 private fun StatChip(
     title: String,
     value: String,
-    progressColor: Color,
+    progress: Float,
+    accent: Color,
     modifier: Modifier = Modifier
 ) {
-    GlassCard(modifier = modifier, cornerRadius = 22.dp, contentPadding = 14.dp) {
-        Column {
-            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(6.dp))
-            Text(value, style = MaterialTheme.typography.headlineSmall.copy(fontSize = 22.sp), fontWeight = FontWeight.ExtraBold)
-            Spacer(Modifier.height(8.dp))
+    GlassCard(modifier = modifier, contentPadding = 12.dp) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+        )
+        Spacer(Modifier.height(8.dp))
+        Box(
+            Modifier
+                .height(5.dp)
+                .fillMaxWidth()
+                .clip(CircleShape)
+                .background(accent.copy(alpha = 0.25f))
+        ) {
             Box(
                 Modifier
-                    .height(5.dp)
-                    .fillMaxWidth(0.35f)
-                    .clip(CircleShape)
-                    .background(progressColor)
+                    .fillMaxHeight()
+                    .fillMaxWidth(progress.coerceIn(0f, 1f))
+                    .background(accent)
             )
         }
     }
 }
 
 @Composable
-private fun IconBadge() {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(Color(0xFFF1ECFF)),
-        contentAlignment = Alignment.Center
-    ) { Text("🔥", fontSize = 18.sp) }
+private fun QuickAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.clip(RoundedCornerShape(16.dp)),
+        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(icon, contentDescription = null)
+            Text(label, style = MaterialTheme.typography.labelLarge)
+        }
+    }
 }
 
-private fun quoteOfTodayLocal(): String {
+private fun localQuoteOfToday(): String {
     val quotes = listOf(
-        "Start with the smallest possible step.",
         "Small wins compound—study 20 minutes now.",
         "Show up today. Momentum beats perfection.",
         "Future you will thank present you.",
-        "Consistency turns hard into habit."
+        "Consistency turns hard into habit.",
+        "Start with the smallest possible step.",
+        "You don’t need more time, just a start.",
+        "Track the streak, not the stress.",
+        "Progress, not perfection.",
+        "Make it easy to begin—open the book.",
+        "Done is greater than perfect."
     )
     val epochDays = (System.currentTimeMillis() / (24L * 60 * 60 * 1000)).toInt()
-    return quotes[abs(epochDays) % quotes.size]
+    return quotes[kotlin.math.abs(epochDays) % quotes.size]
 }
+
+private data class DemoTask(val title: String, val subtitle: String)
+private val sampleTasks = listOf(
+    DemoTask("Math revision", "30 minutes • due today"),
+    DemoTask("Plan essay outline", "English • due tomorrow"),
+    DemoTask("Chemistry flashcards", "15 minutes • spaced repetition"),
+)
